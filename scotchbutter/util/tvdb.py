@@ -1,5 +1,6 @@
+"""Contains classes and functions to communicate with the TVDB API."""
 from urllib import request
-from collections import defaultdict
+from functools import lru_cache
 
 import json
 
@@ -21,12 +22,15 @@ URLS = {key: request.urljoin(TVDB_URL, path) for key, path in SUB_URLS.items()}
 
 
 class TvdbApi():
+    """Provides an interface to query TVDB api."""
 
     def __init__(self):
+        """Generate a new API instance."""
         self._token = None
 
     @property
     def token(self):
+        """Generate new/use cached authentication token."""
         if self._token is None:
             headers = {
                 "Accept": "application/json",
@@ -34,46 +38,73 @@ class TvdbApi():
             }
             data = bytes(json.dumps(AUTH_DATA), encoding='utf-8')
             req = request.Request(URLS['login'], headers=headers, data=data)
-            response = request.urlopen(req)
-            if response.code == 401:
-                raise ConnectionRefusedError('Failed To Authenticate.')
-            elif response.code != 200:
-                raise ConnectionError('Unexpected Response.')
+            try:
+                response = request.urlopen(req)
+            except request.HTTPError as error:
+                if error.code == 401:
+                    raise ConnectionRefusedError('Failed To Authenticate.')
+                raise ConnectionError(f'Unexpected Response: {error.code}.')
             self._token = json.loads(response.read().decode('utf-8'))['token']
         return self._token
 
+    @lru_cache()
     def _get(self, url):
         headers = {
             'Accept': 'application/json',
             'Authorization': f'Bearer {self.token}'
         }
         req = request.Request(url, headers=headers)
-        response = request.urlopen(req)
-        if response.code == 404:
-            raise LookupError('There are no data for this term.')
-        elif response.code != 200:
-            raise ConnectionError('Unexpected Response.')
+        try:
+            response = request.urlopen(req)
+        except request.HTTPError as error:
+            if error.code == 404:
+                raise LookupError('There are no data for this term.')
+            raise ConnectionError(f'Unexpected Response: {error.code}.')
         return json.loads(response.read().decode('utf-8'))
 
     def get_series(self, tvdb_id):
+        """Query TVDB for information about a series."""
         response = self._get(URLS['series'].format(tvdb_id=tvdb_id))
-        return response['data']
+        return TvdbSeries(response['data'], self)
 
     def get_episodes(self, tvdb_id):
-        response = self._get(URLS['episodes'].format(tvdb_id=tvdb_id))
-        episode_data = response['data']
-        # Specials are weird and going to be put in a special season 00 list
-        episodes = {'00': []}
-        for episode in episode_data:
-            # Going with Aired numbers
-            # TODO: Add option to use DVD numbers
-            # Converting to zero padded strings for ease of use
-            season_number = f'{episode.get("airedSeason", 0):02d}'
-            episode_number = f'{episode.get("airedEpisodeNumber", 0):02d}'
-            episodes[season_number] = episodes.get(season_number, {})
-            if season_number == '00':
-                episodes[season_number].append(episode)
-            else:
-                # Assumption: season_number + episode_number is unique
-                episodes[season_number][episode_number] = episode
-        return episodes
+        """Get all episode information for a series."""
+        url = URLS['episodes'].format(tvdb_id=tvdb_id)
+        raw_data = self._get(url)['data']
+        episode_data = list(raw_data)
+        tvdb_page_size = 100
+        page = 1
+        while len(raw_data) == tvdb_page_size:
+            page += 1
+            url = URLS['episodes'].format(tvdb_id=tvdb_id) + f'?page={page}'
+            try:
+                raw_data = self._get(url)['data']
+            except LookupError:
+                # When (total results) % tvdb_page_size == 0
+                break
+            episode_data += raw_data
+        return episode_data
+
+
+class TvdbSeries():
+    """Container for a information about a TV Show."""
+
+    def __init__(self, tvdb_data, tvdb_api):
+        """Create a TV Series container."""
+        self._tvdb_api = tvdb_api
+        self._tvdb_data = tvdb_data
+        self.series_id = tvdb_data['id']
+        self.series_name = tvdb_data['seriesName']
+
+    def __getattr__(self, key):
+        if key in self._tvdb_data:
+            return self._tvdb_data[key]
+        raise KeyError(key)
+
+    def __str__(self):
+        return self._tvdb_data['seriesName']
+
+    @property
+    def episodes(self):
+        """Find all known episodes of the series."""
+        return self._tvdb_api.get_episodes(self.series_id)

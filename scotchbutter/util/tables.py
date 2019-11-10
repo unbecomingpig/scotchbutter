@@ -4,10 +4,11 @@
 class Column():
     """Helper to manage table column data."""
 
-    def __init__(self, name, datatype, constraint=None):
+    def __init__(self, name, datatype, constraint=None, tvdb_field=None):
         self.name = name
         self.datatype = datatype
         self.constraint = constraint
+        self.tvdb_field = tvdb_field
         # TODO: Add validity checks to for name, datatype, and constraint
 
     @property
@@ -32,35 +33,38 @@ class Table():
     def create_table_string(self):
         """Generate an SQL query to create the table in a database."""
         columns = ', '.join([column.create_text for column in self.columns])
-        return f'CREATE TABLE [IF NOT EXISTS] {self.table_name} ({columns});'
+        return f"CREATE TABLE IF NOT EXISTS '{self.table_name}' ({columns});"
+
+    @property
+    def insert_string(self):
+        """Generate an SQL query to insert values into a database."""
+        columns = ', '.join([column.name for column in self.columns])
+        values = ','.join('?'*len(self.columns))
+        return f"INSERT OR REPLACE INTO '{self.table_name}' ({columns}) VALUES({values})"
 
 
-class ShowTable(Table):
-    """Helper class to manage a single show's data."""
+LIBRARY_COLUMNS = (
+    Column('seriesId', 'INTEGER', 'PRIMARY KEY', 'id'),
+    Column('airsDayOfWeek', 'TEXT', None, 'airsDayOfWeek'),
+    Column('airsTime', 'TEXT', None, 'airsTime'),
+    Column('banner', 'TEXT', None, 'banner'),
+    Column('firstAired', 'TEXT', None, 'firstAired'),
+    Column('imdbId', 'TEXT', None, 'imdbId'),
+    Column('overview', 'TEXT', None, 'overview'),
+    Column('seriesName', 'TEXT', 'NOT NULL', 'seriesName'),
+)
 
-    def __init__(self, seriesId):
-        """Create a Table for a show with seriesId."""
-        super(ShowTable, self).__init__(seriesId)
-        self.add_column(Column('id', 'INTEGER'))
-        self.add_column(Column('absoluteNumber', 'INTEGER'))
-        self.add_column(Column('airedEpisodeNumber', 'INTEGER'))
-        self.add_column(Column('airedSeason', 'INTEGER'))
-        self.add_column(Column('dvdEpisodeNumber', 'INTEGER'))
-        self.add_column(Column('dvdSeason', 'INTEGER'))
-        self.add_column(Column('episodeName', 'TEXT'))
-        self.add_column(Column('firstAired', 'TEXT'))
-        self.add_column(Column('imdbId', 'TEXT'))
-        self.add_column(Column('overview', 'TEXT'))
-        self.add_column(Column('seriesId', 'INTEGER'))
-        self.add_column(Column('ThumbFile', 'TEXT'))
-
-
-LIBRARY_TABLE = Table('library')
-LIBRARY_TABLE.add_column(Column('seriesId', 'INTEGER', 'PRIMARY KEY'))
-LIBRARY_TABLE.add_column(Column('airsDayOfWeek', 'TEXT'))
-LIBRARY_TABLE.add_column(Column('airsTime', 'TEXT'))
-LIBRARY_TABLE.add_column(Column('banner', 'TEXT'))
-LIBRARY_TABLE.add_column(Column('firstAired', 'TEXT'))
-LIBRARY_TABLE.add_column(Column('imdbId', 'TEXT'))
-LIBRARY_TABLE.add_column(Column('overview', 'TEXT'))
-LIBRARY_TABLE.add_column(Column('seriesName', 'TEXT', 'NOT NULL'))
+SHOW_COLUMNS = (
+    Column('episodeId', 'INTEGER', 'PRIMARY KEY', 'id'),
+    Column('absoluteNumber', 'INTEGER', None, 'absoluteNumber'),
+    Column('airedEpisodeNumber', 'INTEGER', 'NOT NULL', 'airedEpisodeNumber'),
+    Column('airedSeason', 'INTEGER', 'NOT NULL', 'airedSeason'),
+    Column('dvdEpisodeNumber', 'INTEGER', None, 'dvdEpisodeNumber'),
+    Column('dvdSeason', 'INTEGER', None, 'dvdSeason'),
+    Column('episodeName', 'TEXT', 'NOT NULL', 'episodeName'),
+    Column('firstAired', 'TEXT', None, 'firstAired'),
+    Column('imdbId', 'TEXT', None, 'imdbId'),
+    Column('overview', 'TEXT', None, 'overview'),
+    Column('seriesId', 'INTEGER', 'NOT NULL', 'seriesId'),
+    Column('thumbFile', 'TEXT', None, 'filename'),
+)
