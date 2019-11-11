@@ -1,6 +1,7 @@
 """Contains classes and functions to communicate with the TVDB API."""
 from urllib import request
 from functools import lru_cache
+import re
 
 import json
 
@@ -14,7 +15,7 @@ TVDB_URL = 'https://api.thetvdb.com'
 SUB_URLS = {
     'login': '/login',
     'refresh_token': '/refresh_token',
-    'search_series': '/search/series',
+    'search_series': '/search/series?name={name}',
     'series': '/series/{tvdb_id}',
     'episodes': '/series/{tvdb_id}/episodes',
 }
@@ -84,6 +85,21 @@ class TvdbApi():
                 break
             episode_data += raw_data
         return episode_data
+
+    def search_series(self, search_string: str):
+        url = URLS['search_series'].format(name=search_string)
+        raw_data = self._get(url)['data']
+        found_series = {}
+        date_regex = re.compile(r'(?P<year>\d{4})-\d{2}-\d{2}')
+        for series in raw_data:
+            series_ident = f"{series['seriesName']}"
+            date = date_regex.match(series['firstAired'])
+            if date:
+                year = f" ({date.groupdict()['year']})"
+                if not series_ident.endswith(year):
+                    series_ident += year
+            found_series[series_ident] = series
+        return found_series
 
 
 class TvdbSeries():
