@@ -5,13 +5,13 @@ NOTE: Currently only supporting sqlite databases
 
 import logging
 import sqlite3
+import time
 
 from scotchbutter.util import environment, tables
 
-logger = logging.getLogger(__name__)
-
 DB_FILENAME = 'tvshows.sqlite'
 
+logger = logging.getLogger(__name__)
 
 class DBInterface():
     """Provides a contraced API to query the DataBase.
@@ -26,6 +26,7 @@ class DBInterface():
         """Create an interface to query the DataBase."""
         self._settings_path = environment.get_settings_path()
         self._db_file = self._settings_path.joinpath(db_file)
+        logger.info('Using database located at %s', self._db_file)
         self._conn = None
         self._cursor = None
         self.close()
@@ -83,6 +84,7 @@ class DBInterface():
             table.add_column(column)
         if name not in self.existing_tables:
             self.cursor.execute(table.create_table_string)
+            logger.info('Created table %s', name)
         return table
 
     def add_series(self, series):
@@ -90,19 +92,23 @@ class DBInterface():
         table = self.create_table(self.library_name, tables.LIBRARY_COLUMNS)
         values = [series[column.name] for column in table.columns]
         self.cursor.execute(table.insert_string, values)
+        logger.info('Added seriesId %s to %s', series.series_id, self.library_name)
         show_table = self.create_table(series.series_id, tables.SHOW_COLUMNS)
         episodes = []
         for episode in series.episodes:
             values = [episode[column.name] for column in show_table.columns]
             episodes.append(values)
+        logger.info('Added %s episodes to table %s', len(series.episodes), series.series_id)
         self.cursor.executemany(show_table.insert_string, episodes)
 
     def remove_series(self, series_id):
         """Remove a series from the database."""
         drop_string = f"DROP TABLE IF EXISTS '{series_id}'"
         delete_string = f"DELETE FROM '{self.library_name}' WHERE seriesId = {series_id}"
-        self.cursor.execute(drop_string)
         self.cursor.execute(delete_string)
+        logger.info('Removed %s from table %s', series_id, self.library_name)
+        self.cursor.execute(drop_string)
+        logger.info('Removed table %s', series_id)
 
     def _select_from_table(self, table_name: str):
         """Select all entries from a table."""
@@ -110,6 +116,7 @@ class DBInterface():
         results = self.cursor.execute(f'SELECT * from {table_name}')
         column_names = [x[0] for x in results.description]
         rows_values = [dict(zip(column_names, row)) for row in results]
+        logger.debug('Selected %s rows from table %s', len(rows_values), table_name)
         return rows_values
 
     def get_library(self):

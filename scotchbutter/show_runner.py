@@ -2,11 +2,15 @@
 """Provide a debugging front end for maintaining the database."""
 
 import argparse
+import logging
 import sys
 
 from scotchbutter.util import tvdb
 
 # from scotchbutter.util import database
+
+logger = logging.getLogger(__name__)
+
 
 class FatalError(Exception):
     """Manually raised excpetions that should end the script."""

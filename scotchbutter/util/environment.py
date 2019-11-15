@@ -1,10 +1,11 @@
 """Contains functions to interact with the host system's environment."""
 
 import os
-from pathlib import Path
 from functools import lru_cache
+from pathlib import Path
 
 APP_NAME = 'scotchbutter'
+
 
 @lru_cache()
 def get_settings_path(app_name: str = APP_NAME) -> Path:

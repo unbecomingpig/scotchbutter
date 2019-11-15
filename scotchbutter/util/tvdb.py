@@ -1,5 +1,6 @@
 """Contains classes and functions to communicate with the TVDB API."""
 import json
+import logging
 import re
 from functools import lru_cache
 from pathlib import Path
@@ -55,6 +56,7 @@ class TvdbApi():
                     raise ConnectionRefusedError('Failed To Authenticate.')
                 raise ConnectionError(f'Unexpected Response: {error.code}.')
             self._token = json.loads(response.read().decode('utf-8'))['token']
+            logging.debug('Generated new TVDB token')
         return self._token
 
     @lru_cache()
@@ -81,6 +83,7 @@ class TvdbApi():
         """Query TVDB for information about a series."""
         response = self._get(URLS['series'].format(series_id=series_id))
         response['data']['seriesId'] = response['data']['id']
+        logging.debug('Got data for seriesID: %s', series_id)
         return TvdbSeries(response['data'], self)
 
     def get_episodes(self, series_id: int):
@@ -99,6 +102,7 @@ class TvdbApi():
                 # When (total results) % tvdb_page_size == 0
                 break
             episode_data += raw_data
+        logging.debug('Got %s episodes for seriesId %s', len(episode_data), series_id)
         return episode_data
 
     def search_series(self, search_string: str):
@@ -106,8 +110,10 @@ class TvdbApi():
         url = URLS['search_series'].format(name=parse.quote(search_string))
         raw_data = self._get(url)['data']
         found_series = {}
+        skipped = 0
         for series in raw_data:
             if not series['seriesName']:
+                skipped += 1
                 # Apparently this can be a thing.
                 continue
             series_ident = f"{series['seriesName']}"
@@ -117,6 +123,7 @@ class TvdbApi():
                 if not series_ident.endswith(year):
                     series_ident += year
             found_series[series_ident] = TvdbSeries(series, self)
+        logging.debug('Found %s series (%s skipped) using search string "%s"', len(found_series), skipped, search_string)
         return found_series
 
     @lru_cache()
@@ -129,12 +136,15 @@ class TvdbApi():
             if data is None:
                 # Sometimes files come back with 0 bytes instead of 404 error
                 # We are going to pretend they don't exist for right now.
+                logging.info('File %s was found, but contained no data.  Skipping download.', url)
                 output_file = None
             else:
                 if not Path.is_dir(output_file.parent):
+                    logging.debug('Creating directory %s', output_file.parent)
                     Path.mkdir(output_file.parent, parents=True)
                 with open(output_file, 'wb') as f:
                     f.write(data)
+                logging.debug('Downloaded %s to %s', url, output_file)
         return output_file
 
 
