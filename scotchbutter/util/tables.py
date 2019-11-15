@@ -4,11 +4,10 @@
 class Column():
     """Helper to manage table column data."""
 
-    def __init__(self, name, datatype, constraint=None, tvdb_field=None):
+    def __init__(self, name, datatype, constraint=None):
         self.name = name
         self.datatype = datatype
         self.constraint = constraint
-        self.tvdb_field = tvdb_field
         # TODO: Add validity checks to for name, datatype, and constraint
 
     @property
@@ -44,27 +43,27 @@ class Table():
 
 
 LIBRARY_COLUMNS = (
-    Column('seriesId', 'INTEGER', 'PRIMARY KEY', 'id'),
-    Column('airsDayOfWeek', 'TEXT', None, 'airsDayOfWeek'),
-    Column('airsTime', 'TEXT', None, 'airsTime'),
-    Column('banner', 'TEXT', None, 'banner'),
-    Column('firstAired', 'TEXT', None, 'firstAired'),
-    Column('imdbId', 'TEXT', None, 'imdbId'),
-    Column('overview', 'TEXT', None, 'overview'),
-    Column('seriesName', 'TEXT', 'NOT NULL', 'seriesName'),
+    Column('seriesId', 'INTEGER', 'PRIMARY KEY'),
+    Column('airsDayOfWeek', 'TEXT', None),
+    Column('airsTime', 'TEXT', None),
+    Column('banner', 'TEXT', None),
+    Column('firstAired', 'TEXT', None),
+    Column('imdbId', 'TEXT', None),
+    Column('overview', 'TEXT', None),
+    Column('seriesName', 'TEXT', 'NOT NULL'),
 )
 
 SHOW_COLUMNS = (
-    Column('episodeId', 'INTEGER', 'PRIMARY KEY', 'id'),
-    Column('absoluteNumber', 'INTEGER', None, 'absoluteNumber'),
-    Column('airedEpisodeNumber', 'INTEGER', 'NOT NULL', 'airedEpisodeNumber'),
-    Column('airedSeason', 'INTEGER', 'NOT NULL', 'airedSeason'),
-    Column('dvdEpisodeNumber', 'INTEGER', None, 'dvdEpisodeNumber'),
-    Column('dvdSeason', 'INTEGER', None, 'dvdSeason'),
-    Column('episodeName', 'TEXT', 'NOT NULL', 'episodeName'),
-    Column('firstAired', 'TEXT', None, 'firstAired'),
-    Column('imdbId', 'TEXT', None, 'imdbId'),
-    Column('overview', 'TEXT', None, 'overview'),
-    Column('seriesId', 'INTEGER', 'NOT NULL', 'seriesId'),
-    Column('thumbFile', 'TEXT', None, 'filename'),
+    Column('id', 'INTEGER', 'PRIMARY KEY'),
+    Column('airedSeason', 'INTEGER', 'NOT NULL'),
+    Column('airedEpisodeNumber', 'INTEGER', 'NOT NULL'),
+    Column('episodeName', 'TEXT', 'NOT NULL'),
+    Column('firstAired', 'TEXT', None),
+    Column('absoluteNumber', 'INTEGER', None),
+    Column('dvdSeason', 'INTEGER', None),
+    Column('dvdEpisodeNumber', 'INTEGER', None),
+    Column('imdbId', 'TEXT', None),
+    Column('seriesId', 'INTEGER', 'NOT NULL'),
+    Column('filename', 'TEXT', None),
+    Column('overview', 'TEXT', None),
 )

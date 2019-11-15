@@ -6,8 +6,7 @@ NOTE: Currently only supporting sqlite databases
 import logging
 import sqlite3
 
-from scotchbutter.util import environment
-from scotchbutter.util import tables
+from scotchbutter.util import environment, tables
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +28,6 @@ class DBInterface():
         self._db_file = self._settings_path.joinpath(db_file)
         self._conn = None
         self._cursor = None
-        self.library_table = self.create_table(self.library_name, tables.LIBRARY_COLUMNS)
         self.close()
 
     @property
@@ -89,11 +87,35 @@ class DBInterface():
 
     def add_series(self, series):
         """Add a series to the database."""
-        values = [getattr(series, column.tvdb_field) for column in self.library_table.columns]
-        self.cursor.execute(self.library_table.insert_string, values)
+        table = self.create_table(self.library_name, tables.LIBRARY_COLUMNS)
+        values = [series[column.name] for column in table.columns]
+        self.cursor.execute(table.insert_string, values)
         show_table = self.create_table(series.series_id, tables.SHOW_COLUMNS)
         episodes = []
         for episode in series.episodes:
-            values = [episode[column.tvdb_field] for column in show_table.columns]
+            values = [episode[column.name] for column in show_table.columns]
             episodes.append(values)
         self.cursor.executemany(show_table.insert_string, episodes)
+
+    def remove_series(self, series_id):
+        """Remove a series from the database."""
+        drop_string = f"DROP TABLE IF EXISTS '{series_id}'"
+        delete_string = f"DELETE FROM '{self.library_name}' WHERE seriesId = {series_id}"
+        self.cursor.execute(drop_string)
+        self.cursor.execute(delete_string)
+
+    def _select_from_table(self, table_name: str):
+        """Select all entries from a table."""
+        # TODO: expand this to accept where statements
+        results = self.cursor.execute(f'SELECT * from {table_name}')
+        column_names = [x[0] for x in results.description]
+        rows_values = [dict(zip(column_names, row)) for row in results]
+        return rows_values
+
+    def get_library(self):
+        """return a list of series dicts for shows in the library."""
+        return self._select_from_table(self.library_name)
+
+    def get_episodes(self, series_id):
+        """Return a list of episode dicts for the requested series."""
+        return self._select_from_table(series_id)
